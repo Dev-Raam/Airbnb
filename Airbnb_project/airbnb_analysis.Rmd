@@ -1,0 +1,108 @@
+---
+title: "Airbnb Data Analysis"
+author: "Ram Kumar"
+date: "2024-08-15"
+output: pdf_document
+always_allow_html: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(ggplot2)
+library(DT)
+library(readr)
+library(corrplot)
+```
+
+## load data
+
+```{r load-data}
+
+library(lubridate)
+airbnb <- read_csv("D:/Airbnb_project/NYC_Airbnb_Open_Data.csv")
+airbnb <- airbnb %>%
+  mutate(
+    price = as.numeric(price),
+    reviews_per_month = replace_na(reviews_per_month, 0),
+    last_review = dmy(last_review)
+  ) %>%
+  filter(!is.na(price) & price > 0)
+head(airbnb)
+```
+
+## summary analysis
+
+```{r}
+
+summary(airbnb[, c("price", "minimum_nights", "number_of_reviews", "availability_365")])
+
+avg_price_neigh <- airbnb %>%
+  group_by(neighbourhood_group) %>%
+  summarise(avg_price = mean(price, na.rm = TRUE),
+            num_listings = n()) %>%
+  arrange(desc(avg_price))
+
+datatable(avg_price_neigh)
+```
+
+### Histogram of prices
+
+```{r}
+
+ggplot(airbnb, aes(x = price)) +
+  geom_histogram(bins = 50, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of Listing Prices", x = "Price ($)", y = "Count") +
+  xlim(0, 1000)  
+```
+
+### Boxplot of Prices by Room Type
+
+```{r}
+
+ggplot(airbnb, aes(x = room_type, y = price, fill = room_type)) +
+  geom_boxplot() +
+  theme_minimal() +
+  labs(title = "Price Distribution by Room Type", x = "Room Type", y = "Price ($)") +
+  ylim(0, 500)  
+
+```
+
+### Bar Chart of Listings by Neighborhood Group
+
+```{r}
+ggplot(airbnb, aes(x = neighbourhood_group, fill = neighbourhood_group)) +
+  geom_bar() +
+  theme_minimal() +
+  labs(title = "Number of Listings by Neighborhood Group", x = "Neighborhood Group", y = "Count")
+```
+
+### Scatter Plot: Price vs. Number of Reviews
+
+```{r}
+ggplot(airbnb, aes(x = number_of_reviews, y = price)) +
+  geom_point(alpha = 0.5) +
+  theme_minimal() +
+  labs(title = "Price vs. Number of Reviews", x = "Number of Reviews", y = "Price ($)") +
+  ylim(0, 1000)
+```
+
+### Correlation Analysis
+
+```{r}
+# Calculate correlations and round to 3 decimal places
+price_reviews_cor <- round(cor(airbnb$price, airbnb$number_of_reviews, use = "complete.obs"), 3)
+price_availability_cor <- round(cor(airbnb$price, airbnb$availability_365, use = "complete.obs"), 3)
+
+# Print results
+cat("Correlation between price and number of reviews:", price_reviews_cor, "\n")
+cat("Correlation between price and availability (365 days):", price_availability_cor, "\n")
+
+# correlation matrix for numeric variables
+cor_matrix <- cor(airbnb %>% select(price, number_of_reviews, availability_365, minimum_nights), use = "complete.obs")
+
+# Plot heatmap
+corrplot(cor_matrix, method = "color", type = "upper", addCoef.col = "black", tl.col = "black", tl.srt = 45)
+```
+
